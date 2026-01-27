@@ -1,28 +1,25 @@
 import os
-import time
+import signal
+import subprocess
+from pathlib import Path
 import tqdm
 from scipy.special import comb
 
-#import threading
-from threading import Thread
 
-
-def exec_shell(cmd_str, timeout=8):
-    def run_shell_func(sh):
-        os.system(sh)
-    start_time = time.time()
-    t = Thread(target=run_shell_func, args=(cmd_str,), daemon=False)
-    t.start()
-    while 1:
-        now = time.time()
-        if now - start_time >= timeout:
-            if not t.is_alive():
-                return 1
-            else:
-                return 0
-        if not t.is_alive():
-            return 1
-        time.sleep(1)
+def exec_shell(cmd_str, timeout=8, cwd=None):
+    try:
+        proc = subprocess.Popen(
+            cmd_str,
+            shell=True,
+            cwd=cwd,
+            start_new_session=True,  # Creates new process group
+        )
+        proc.wait(timeout=timeout)
+        return 1
+    except subprocess.TimeoutExpired:
+        os.killpg(proc.pid, signal.SIGKILL)  # Kill entire process group
+        proc.wait()  # Reap zombie
+        return 0
 
 
 def cal_atk(dic_list, n, k):
@@ -31,26 +28,30 @@ def cal_atk(dic_list, n, k):
     for design in dic_list.keys():
         c = dic_list[design]['syntax_success']
         sum_list.append(1 - comb(n - c, k) / comb(n, k))
-    sum_list.append(0)
-    syntax_passk = sum(sum_list) / len(sum_list)
+    syntax_passk = sum(sum_list) / len(sum_list) if sum_list else 0
     
     #func
     sum_list = []
     for design in dic_list.keys():
         c = dic_list[design]['func_success']
         sum_list.append(1 - comb(n - c, k) / comb(n, k))
-    sum_list.append(0)
-    func_passk = sum(sum_list) / len(sum_list)
+    func_passk = sum(sum_list) / len(sum_list) if sum_list else 0
     print(f'syntax pass@{k}: {syntax_passk},   func pass@{k}: {func_passk}')
 
 
-progress_bar = tqdm.tqdm(total=290)
 design_name = ['accu', 'adder_8bit', 'adder_16bit', 'adder_32bit', 'adder_pipe_64bit', 'asyn_fifo', 'calendar', 'counter_12', 'edge_detect',
-               'freq_div', 'fsm', 'JC_counter', 'multi_16bit', 'multi_booth_8bit', 'multi_pipe_4bit', 'multi_pipe_8bit', 'parallel2serial' , 'pe' , 'pulse_detect', 
+               'freq_div', 'fsm', 'JC_counter', 'multi_16bit', 'multi_booth_8bit', 'multi_pipe_4bit', 'multi_pipe_8bit', 'parallel2serial' , 'pe' , 'pulse_detect',
                'radix2_div', 'RAM', 'right_shifter',  'serial2parallel', 'signal_generator','synchronizer', 'alu', 'div_16bit', 'traffic_light', 'width_8to16']
 
+base_path = Path("_chatgpt4").resolve()
 
-path = "/home/coguest/luyao/SmallDesigns/chatgpt35/"
+# Count test files to set progress bar total
+num_test_files = 0
+file_id = 1
+while (base_path / f"t{file_id}").exists():
+    num_test_files += 1
+    file_id += 1
+progress_bar = tqdm.tqdm(total=len(design_name) * num_test_files)
 result_dic = {key: {} for key in design_name}
 for item in design_name:
     result_dic[item]['syntax_success'] = 0
@@ -58,45 +59,28 @@ for item in design_name:
 
 
 def test_one_file(testfile, result_dic):
+    src_path = base_path / testfile
     for design in design_name:
-        if os.path.exists(f"{design}/makefile"):
-            makefile_path = os.path.join(design, "makefile")
-            with open(makefile_path, "r") as file:
-                makefile_content = file.read()
-                modified_makefile_content = makefile_content.replace("${TEST_DESIGN}", f"{path}/{testfile}/{design}")
-                # modified_makefile_content = makefile_content.replace(f"{path}/{design}/{design}", "${TEST_DESIGN}")
-            with open(makefile_path, "w") as file:
-                file.write(modified_makefile_content)
-            # Run 'make vcs' in the design folder
-            os.chdir(design)
-            os.system("make vcs")
-            simv_generated = False
-            if os.path.exists("simv"):
-                simv_generated = True
+        design_dir = Path(design).resolve()
+        if (design_dir / "makefile").exists():
+            subprocess.run(f"make vcs SRC_PATH={src_path}", shell=True, cwd=design_dir)
 
-
-            if simv_generated:
+            if (design_dir / "simv").exists():
                 result_dic[design]['syntax_success'] += 1
-                # Run 'make sim' and check the result
-                #os.system("make sim > output.txt")
-                to_flag = exec_shell("make sim > output.txt")
+                to_flag = exec_shell("make sim > output.txt", cwd=design_dir)
                 if to_flag == 1:
-                    with open("output.txt", "r") as file:
-                        output = file.read()
-                        if "Pass" in output or "pass" in output:
-                            result_dic[design]['func_success'] += 1
-            
-            with open("makefile", "w") as file:
-                file.write(makefile_content)
-            os.system("make clean")
-            os.chdir("..")
+                    output = (design_dir / "output.txt").read_text()
+                    if "Pass" in output or "pass" in output:
+                        result_dic[design]['func_success'] += 1
+
+            subprocess.run("make clean", shell=True, cwd=design_dir)
             progress_bar.update(1)
 
     return result_dic
 
 file_id = 1
 n = 0
-while os.path.exists(os.path.join(path, f"t{file_id}")):
+while (base_path / f"t{file_id}").exists():
     # if file_id == 5:
     #     break
     result_dic = test_one_file(f"t{file_id}", result_dic)
