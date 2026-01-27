@@ -9,7 +9,6 @@ wire [15:0] odd;
 integer i; 
 reg [15:0] expected_result; 
 integer error = 0; 
-reg [15:0] expected_result;
 reg [15:0] expected_odd;
 initial begin
    for (i = 0; i < 100; i = i + 1) begin

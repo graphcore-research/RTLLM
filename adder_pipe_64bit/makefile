@@ -1,2 +1,2 @@
-TEST_DESIGN = adder_pip_64bit
+TEST_DESIGN = adder_pipe_64bit
 include ../common.mk

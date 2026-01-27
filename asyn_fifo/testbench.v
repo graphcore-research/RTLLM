@@ -94,12 +94,12 @@ module asyn_fifo_tb;
   //   $display("wfull=%d, rempty=%d, rdata=%h", wfull, rempty, rdata);
   // end
 
-  initial begin
+  initial begin : write_loop
   repeat (17) begin
     #20;
     if (wfull) begin
       // $display("FIFO is full (wfull=1) at depth %d", $time);
-      break;
+      disable write_loop;
     end
     winc = 1; // Enable write
     wdata = wdata + 1; // Write data
