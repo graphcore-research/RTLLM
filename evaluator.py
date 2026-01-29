@@ -12,6 +12,22 @@ async def evaluate(sample: Sample) -> EvalResult:
     design_dir = _THIS_DIR / sample.problem
     log_parts = []
 
+    # Extract code from markdown code fences if present
+    code = sample.code
+    if '```verilog' in code or '```systemverilog' in code or '```' in code:
+        # Find the first verilog code block
+        for fence in ['```verilog', '```systemverilog', '```']:
+            if fence in code:
+                # Split at the opening fence
+                parts = code.split(fence, 1)
+                if len(parts) >= 2:
+                    # Everything after the opening fence
+                    after_fence = parts[1]
+                    # Find the closing fence
+                    if '```' in after_fence:
+                        code = after_fence.split('```', 1)[0].strip()
+                        break
+    
     with tempfile.TemporaryDirectory() as tmp:
         tmp_dir = Path(tmp)
         work_dir = tmp_dir / sample.problem
@@ -19,7 +35,7 @@ async def evaluate(sample: Sample) -> EvalResult:
         shutil.copy(_THIS_DIR / "common.mk", tmp_dir / "common.mk")
 
         # Write the code to be tested
-        (work_dir / f"{sample.problem}.v").write_text(sample.code)
+        (work_dir / f"{sample.problem}.v").write_text(code)
 
         # Compile
         completed, compile_output = await run_with_timeout("make vcs", cwd=work_dir)
