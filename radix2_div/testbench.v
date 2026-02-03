@@ -6,7 +6,6 @@ module radix2_div_tb;
     reg [7:0] dividend, divisor;
     reg sign;
     reg opn_valid;
-    reg res_ready;
     wire res_valid;
     wire [15:0] result;
 
@@ -19,7 +18,6 @@ module radix2_div_tb;
         .sign(sign),
         .opn_valid(opn_valid),
         .res_valid(res_valid),
-        .res_ready(res_ready),
         .result(result)
     );
 
@@ -50,7 +48,6 @@ module radix2_div_tb;
         // Initialize
         rst = 1;
         opn_valid = 0;
-        res_ready = 1;
         #20;
         rst = 0;
 
@@ -73,7 +70,6 @@ module radix2_div_tb;
                 $display("Error: dividend=%d, divisor=%d, expected=%h, got=%h", a_test[i], b_test[i], expected_result[i], result);
             end
 
-            res_ready = 1;
             #10;
         end
 
