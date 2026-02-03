@@ -22,13 +22,12 @@ module tb();
     din_serial <= 1'b0; #10;
     din_serial <= 1'b0; #10;
     din_serial <= 1'b0; #10;
+    din_valid  <= 1'b0;
     while(dout_valid == 0) begin
       #5;
     end
     // $display("%b",dout_parallel);
-    error = (dout_parallel == 8'b11110000) ?error:error+1;
-    
-    din_valid  <= 1'b0; 
+    error = (dout_parallel == 8'b11110000) ?error:error+1; 
 		#30;
 		din_valid  <= 1'b1;
 
@@ -40,7 +39,7 @@ module tb();
 		din_serial <= 1'b0; #10
 		din_serial <= 1'b0; #10
 		din_serial <= 1'b1; #10
-		din_serial <= 1'b1; #20
+		din_serial <= 1'b1; #10
 		din_valid  <= 1'b0;
     while(dout_valid == 0) begin
       #5;
