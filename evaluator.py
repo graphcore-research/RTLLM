@@ -24,9 +24,9 @@ async def evaluate(sample: Sample) -> EvalResult:
 
     # Extract code from markdown code fences if present
     code = sample.code
-    if '```verilog' in code or '```systemverilog' in code or '```' in code:
+    if "```verilog" in code or "```systemverilog" in code or "```" in code:
         # Find the first verilog code block
-        for fence in ['```verilog', '```systemverilog', '```']:
+        for fence in ["```verilog", "```systemverilog", "```"]:
             if fence in code:
                 # Split at the opening fence
                 parts = code.split(fence, 1)
@@ -34,8 +34,8 @@ async def evaluate(sample: Sample) -> EvalResult:
                     # Everything after the opening fence
                     after_fence = parts[1]
                     # Find the closing fence
-                    if '```' in after_fence:
-                        code = after_fence.split('```', 1)[0].strip()
+                    if "```" in after_fence:
+                        code = after_fence.split("```", 1)[0].strip()
                         break
 
     with tempfile.TemporaryDirectory() as tmp:
