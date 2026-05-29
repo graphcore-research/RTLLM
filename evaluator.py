@@ -2,31 +2,49 @@ import shutil
 import tempfile
 from pathlib import Path
 
+from post_training_torchtitan.app.grading import FormatReward, FormatRewardResult
+
 from ..async_util import run_with_timeout
 from ..evaluator import EvalResult, Sample
 
 _THIS_DIR = Path(__file__).parent
+
+_FORMAT_REWARD = FormatReward()
+
+
+def _score_format(completion: str) -> FormatRewardResult:
+    return _FORMAT_REWARD.score(completion)
+
+
+def _format_details(format_result: FormatRewardResult) -> dict[str, object]:
+    return {
+        "format_passed": format_result.passed,
+        "format_reward": format_result.reward,
+        "format_failure_reason": format_result.failure_reason,
+        "extracted_code": format_result.code,
+    }
 
 
 async def evaluate(sample: Sample) -> EvalResult:
     design_dir = _THIS_DIR / sample.problem
     log_parts = []
 
-    # Extract code from markdown code fences if present
-    code = sample.code
-    if "```verilog" in code or "```systemverilog" in code or "```" in code:
-        # Find the first verilog code block
-        for fence in ["```verilog", "```systemverilog", "```"]:
-            if fence in code:
-                # Split at the opening fence
-                parts = code.split(fence, 1)
-                if len(parts) >= 2:
-                    # Everything after the opening fence
-                    after_fence = parts[1]
-                    # Find the closing fence
-                    if "```" in after_fence:
-                        code = after_fence.split("```", 1)[0].strip()
-                        break
+    format_result = _score_format(sample.code)
+    code = format_result.code
+    format_details = _format_details(format_result)
+    if not format_result.passed:
+        reason = "format error"
+        log = f"=== format ===\n{format_result.failure_reason}"
+        return EvalResult(
+            passed=False,
+            details={
+                **format_details,
+                "syntax_passed": False,
+                "func_passed": False,
+                "reason": reason,
+                "log": log,
+            },
+        )
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_dir = Path(tmp)
@@ -52,6 +70,7 @@ async def evaluate(sample: Sample) -> EvalResult:
         return EvalResult(
             passed=syntax_passed and func_passed,
             details={
+                **format_details,
                 "syntax_passed": syntax_passed,
                 "func_passed": func_passed,
                 "log": "\n\n".join(log_parts),

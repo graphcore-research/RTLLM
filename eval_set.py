@@ -13,6 +13,6 @@ class RTLLMV1_1EvalSet:
             yield Problem(
                 eval_set="rtllm_v1_1",
                 name=desc_file.parent.name,
-                system_prompt="Please act as a professional verilog designer. Answer with ONLY the code without any additional explanation or formatting, or otherwise the tests will FAIL.",
+                system_prompt=None,
                 user_prompt=desc_file.read_text(),
             )
